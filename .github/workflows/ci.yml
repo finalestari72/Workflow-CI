@@ -79,7 +79,29 @@ jobs:
             -P min_samples_split=$MSS \
             -P min_samples_leaf=$MSL \
             -P max_features=$MF \
-            --env-manager=local
+            --env-manager=
+      
+      - name: "🔍 Get latest MLflow run_id"
+        env:
+          MLFLOW_TRACKING_URI:      "https://dagshub.com/finalestari2712/Membangun_model.mlflow"
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          python - <<'EOF'
+          import mlflow
+          client = mlflow.tracking.MlflowClient()
+          runs = client.search_runs(
+              experiment_ids=["0"],
+              order_by=["start_time DESC"],
+              max_results=1
+          )
+          run_id = runs[0].info.run_id
+          print(f"Latest Run ID: {run_id}")
+          # Simpan ke GitHub env untuk step berikutnya
+          import os
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"MLFLOW_RUN_ID={run_id}\n")
+          EOF
 
       - name: "📦 Upload artefak ke GitHub Actions"
         uses: actions/upload-artifact@v4
