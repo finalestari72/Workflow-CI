@@ -52,7 +52,7 @@ jobs:
       - name: "📦 Install dependencies"
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy scikit-learn mlflow dagshub matplotlib
+          pip install pandas numpy scikit-learn mlflow matplotlib
 
       # ── 4. Jalankan MLflow Project ───────────────────────────────────────────
       - name: "🚀 Run MLflow Project"
@@ -117,7 +117,7 @@ jobs:
           python-version: "3.10"
 
       - name: "📦 Install MLflow"
-        run: pip install mlflow dagshub
+        run: pip install mlflow
 
       # Login ke Docker Hub
       - name: "🔑 Login ke Docker Hub"
@@ -129,10 +129,9 @@ jobs:
       # Build Docker image dari model terbaru di DagsHub/MLflow
       - name: "🐳 Build Docker image dari MLflow model"
         env:
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-          MLFLOW_TRACKING_URI: "https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/mlsystem-studi-kasus-cs.mlflow"
+          MLFLOW_TRACKING_URI: "https://dagshub.com/finalestari2712/Membangun_model.mlflow"
         run: |
           IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/water-potability-model"
 

@@ -16,7 +16,6 @@ import os
 import tempfile
 import warnings
 
-import dagshub
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -49,9 +48,30 @@ EXPERIMENT   = "Water-Potability-CI"
 DAGSHUB_OWNER = "finalestari2712"
 DAGSHUB_REPO  = "Membangun_model"
 
-# Ambil token dari GitHub Actions environment
-if os.getenv("DAGSHUB_TOKEN"):
-    os.environ["DAGSHUB_USER_TOKEN"] = os.getenv("DAGSHUB_TOKEN")
+# ══════════════════════════════════════════════════════════════════════════════
+# SETUP MLFLOW — Token-based (no OAuth, CI-safe)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def setup_mlflow():
+    token = os.getenv("DAGSHUB_TOKEN")
+    if not token:
+        raise EnvironmentError(
+            "DAGSHUB_TOKEN tidak ditemukan. "
+            "Tambahkan secret DAGSHUB_TOKEN di GitHub Actions."
+        )
+
+    # Set tracking URI ke DagsHub
+    mlflow.set_tracking_uri(
+        f"https://dagshub.com/{DAGSHUB_OWNER}/{DAGSHUB_REPO}.mlflow"
+    )
+
+    # Set kredensial MLflow via environment variable (tidak perlu dagshub.init)
+    os.environ["MLFLOW_TRACKING_USERNAME"] = DAGSHUB_OWNER
+    os.environ["MLFLOW_TRACKING_PASSWORD"] = token
+
+    print(f"  MLflow URI  : https://dagshub.com/{DAGSHUB_OWNER}/{DAGSHUB_REPO}.mlflow")
+    print(f"  Auth        : token ({'*' * 6}{token[-4:]})")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ARGPARSE — parameter dari MLProject
@@ -154,10 +174,8 @@ def main():
     print(f"  min_samples_leaf  : {args.min_samples_leaf}")
     print(f"  max_features      : {args.max_features}")
 
-    # ── Setup DagsHub ─────────────────────────────────────────────────────────
-    print("DAGSHUB_TOKEN exists:", bool(os.getenv("DAGSHUB_TOKEN")))
-    
-    dagshub.init(repo_owner=DAGSHUB_OWNER, repo_name=DAGSHUB_REPO, mlflow=True)
+    # ── Setup MLflow (token-based, CI-safe) ───────────────────────────────────
+    setup_mlflow()
     mlflow.set_experiment(EXPERIMENT)
 
     # ── Load data ─────────────────────────────────────────────────────────────
