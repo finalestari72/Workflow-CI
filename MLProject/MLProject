@@ -10,10 +10,10 @@ entry_points:
         default: 200
       max_depth:
         type: float
-        default: 10
+        default: None
       min_samples_split:
         type: int
-        default: None
+        default: 5
       min_samples_leaf:
         type: int
         default: 1
