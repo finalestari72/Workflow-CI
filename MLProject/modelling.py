@@ -154,11 +154,10 @@ def make_feature_importance(model, feature_names, save_path):
 
 def main():
     setup_mlflow()
-    mlflow.set_experiment(EXPERIMENT)
 
     # ── Parse args ────────────────────────────────────────────────────────────
     args = parse_args()
-    
+
     max_depth = None if args.max_depth == 0 else int(args.max_depth)
 
     print("=" * 55)

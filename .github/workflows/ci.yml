@@ -73,6 +73,7 @@ jobs:
           [ -z "$MF" ]    && MF="sqrt"
 
           mlflow run MLProject \
+            --experiment-name "Water-Potability-CI" \
             -P n_estimators=$N_EST \
             -P max_depth=$DEPTH \
             -P min_samples_split=$MSS \
