@@ -49,6 +49,9 @@ EXPERIMENT   = "Water-Potability-CI"
 DAGSHUB_OWNER = "finalestari2712"
 DAGSHUB_REPO  = "Membangun_model"
 
+# Ambil token dari GitHub Actions environment
+if os.getenv("DAGSHUB_TOKEN"):
+    os.environ["DAGSHUB_USER_TOKEN"] = os.getenv("DAGSHUB_TOKEN")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ARGPARSE — parameter dari MLProject
@@ -152,6 +155,8 @@ def main():
     print(f"  max_features      : {args.max_features}")
 
     # ── Setup DagsHub ─────────────────────────────────────────────────────────
+    print("DAGSHUB_TOKEN exists:", bool(os.getenv("DAGSHUB_TOKEN")))
+    
     dagshub.init(repo_owner=DAGSHUB_OWNER, repo_name=DAGSHUB_REPO, mlflow=True)
     mlflow.set_experiment(EXPERIMENT)
 
