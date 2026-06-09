@@ -232,6 +232,7 @@ def main():
             sk_model              = model,
             artifact_path         = "model",
             registered_model_name = "WaterPotability_CI",
+            input_example         = X_train.iloc[:5],
         )
 
         with tempfile.TemporaryDirectory() as tmp:

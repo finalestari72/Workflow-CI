@@ -151,11 +151,37 @@ jobs:
           EOF
 
       # ──────────────────────────────────────────────────────────────────────────
-      # 7. Install Python dependencies (untuk upload script)
+      # 7. Install Python dependencies (untuk download/upload script)
       # ──────────────────────────────────────────────────────────────────────────
       - name: "Install Python dependencies"
         run: |
           pip install requests
+
+      # ──────────────────────────────────────────────────────────────────────────
+      # 7b. Download MLflow artifacts dari DagsHub ke lokal
+      # (tracking remote → mlruns/ tidak dibuat lokal, harus download dulu)
+      # ──────────────────────────────────────────────────────────────────────────
+      - name: "Download MLflow artifacts from DagsHub"
+        env:
+          MLFLOW_TRACKING_URI:      "https://dagshub.com/finalestari2712/Membangun_model.mlflow"
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          mkdir -p mlflow_artifacts
+          python - <<'EOF'
+          import mlflow, os
+
+          run_id = os.environ["MLFLOW_RUN_ID"]
+          print(f"Downloading artifacts for run: {run_id}")
+
+          client = mlflow.tracking.MlflowClient()
+          client.download_artifacts(
+              run_id=run_id,
+              path="",
+              dst_path="mlflow_artifacts"
+          )
+          print("Artifacts downloaded to mlflow_artifacts/")
+          EOF
 
       # ──────────────────────────────────────────────────────────────────────────
       # 8. Upload to GitHub (artifact)
@@ -164,7 +190,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "mlflow-artifacts-run-${{ github.run_number }}"
-          path: mlruns/
+          path: mlflow_artifacts/
           retention-days: 30
 
       # ──────────────────────────────────────────────────────────────────────────
@@ -175,7 +201,7 @@ jobs:
         run: |
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add mlruns/ || true
+          git add mlflow_artifacts/ || true
           git diff --cached --quiet || git commit \
             -m "ci: run #${{ github.run_number }} — mlflow artifacts [skip ci]"
           git push || true
@@ -192,11 +218,14 @@ jobs:
         run: |
           IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/water-potability-model"
           echo "Building Docker image: $IMAGE_NAME"
+          echo "Using run_id: $MLFLOW_RUN_ID"
 
+          # Gunakan run_id langsung (bukan registry) agar env conda sinkron
+          # --env-manager=local: install pip langsung, hindari error Python 3.9 apt
           mlflow models build-docker \
-            -m "models:/WaterPotability_CI/latest" \
+            -m "runs:/$MLFLOW_RUN_ID/model" \
             -n "$IMAGE_NAME" \
-            --enable-mlserver
+            --env-manager=local
 
       # ──────────────────────────────────────────────────────────────────────────
       # 11. Log in to Docker Hub
