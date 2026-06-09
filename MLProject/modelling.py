@@ -76,7 +76,7 @@ def setup_mlflow():
 def parse_args():
     parser = argparse.ArgumentParser(description="Train Water Potability RF Model")
     parser.add_argument("--n_estimators",      type=int,   default=200)
-    parser.add_argument("--max_depth",         type=float, default=10)
+    parser.add_argument("--max_depth",         type=int, default=10)
     parser.add_argument("--min_samples_split", type=int,   default=2)
     parser.add_argument("--min_samples_leaf",  type=int,   default=1)
     parser.add_argument("--max_features",      type=str,   default="sqrt")
@@ -153,17 +153,13 @@ def make_feature_importance(model, feature_names, save_path):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    # ── PERTAMA: setup tracking sebelum apapun ────────────────────────────────
-    # Ini harus paling atas — mlflow run sudah inject MLFLOW_RUN_ID ke env,
-    # dan start_run() akan hit tracking server untuk validasi ID tersebut.
-    # Kalau URI belum di-set saat itu, muncul error "Run not found".
     setup_mlflow()
     mlflow.set_experiment(EXPERIMENT)
 
     # ── Parse args ────────────────────────────────────────────────────────────
     args = parse_args()
-
-    max_depth = None if args.max_depth == 0 else args.max_depth
+    
+    max_depth = None if args.max_depth == 0 else int(args.max_depth)
 
     print("=" * 55)
     print("MLflow Project — Water Potability CI")
