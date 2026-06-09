@@ -1,6 +1,7 @@
 # Workflow-CI — Water Potability
 
-Repositori ini berisi workflow CI untuk **Kriteria 3 – Submission Machine Learning MSML**.
+Repositori ini berisi **Kriteria 3 – Workflow CI** untuk Submission Machine Learning MSML Dicoding.
+Model yang dilatih adalah **Random Forest Classifier** untuk prediksi kelayakan air minum.
 
 ---
 
@@ -10,10 +11,10 @@ Repositori ini berisi workflow CI untuk **Kriteria 3 – Submission Machine Lear
 Workflow-CI/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                          # GitHub Actions CI
+│       └── ci.yml                          # GitHub Actions CI (Advanced)
 ├── MLProject/
-│   ├── modelling.py                        # Script training (entry point)
-│   ├── conda.yaml                          # Environment dependencies
+│   ├── modelling.py                        # Script training (MLflow entry point)
+│   ├── conda.yaml                          # Environment dependencies (Python 3.12.7)
 │   ├── MLProject                           # Konfigurasi MLflow Project
 │   ├── water_potability_preprocessing.csv  # Dataset siap latih
 │   └── DockerHub.txt                       # Tautan Docker Hub
@@ -22,26 +23,26 @@ Workflow-CI/
 
 ---
 
-## 🔐 Setup GitHub Secrets
+## 🔐 GitHub Secrets yang Dibutuhkan
 
-Sebelum workflow berjalan, tambahkan secrets berikut di **GitHub → Settings → Secrets → Actions**:
+Tambahkan secrets di **GitHub → Settings → Secrets and variables → Actions**:
 
-| Secret | Nilai |
+| Secret | Keterangan |
 |---|---|
-| `DAGSHUB_USERNAME` | Username DagsHub kamu |
-| `DAGSHUB_TOKEN` | Token dari dagshub.com/user/settings/tokens |
-| `DOCKERHUB_USERNAME` | Username Docker Hub kamu |
-| `DOCKERHUB_TOKEN` | Access token dari hub.docker.com/settings/security |
+| `DAGSHUB_USERNAME` | Username DagsHub (misal: `finalestari2712`) |
+| `DAGSHUB_TOKEN`    | Token dari dagshub.com → User Settings → Tokens |
+| `DOCKERHUB_USERNAME` | Username Docker Hub |
+| `DOCKERHUB_TOKEN`    | Access token dari hub.docker.com → Account Settings → Security |
 
 ---
 
-## 🚀 Cara Kerja CI
+## 🚀 Trigger CI
 
-### Trigger otomatis
-Workflow berjalan setiap kali ada **push ke branch main** yang mengubah file di folder `MLProject/`.
+### Otomatis
+Workflow berjalan setiap ada **push ke branch `main`/`master`** yang menyentuh file di `MLProject/`.
 
-### Trigger manual
-Buka tab **Actions → CI Water Potability → Run workflow**, lalu isi parameter:
+### Manual (workflow_dispatch)
+Buka **Actions → CI — Water Potability MLflow Training → Run workflow**, lalu atur parameter:
 
 | Parameter | Default | Keterangan |
 |---|---|---|
@@ -53,31 +54,29 @@ Buka tab **Actions → CI Water Potability → Run workflow**, lalu isi paramete
 
 ---
 
-## 📋 Alur CI (ci.yml)
+## 📋 Alur CI — Advanced (4 pts)
 
 ```
-Push / Manual trigger
-        │
-        ▼
-┌─────────────────┐
-│   Job: train    │
-│                 │
-│ 1. Checkout     │
-│ 2. Setup Python │
-│ 3. Install deps │
-│ 4. mlflow run   │ ← MLProject entry point
-│ 5. Upload       │ ← artefak ke GitHub Actions (Skilled)
-│ 6. Commit       │ ← artefak ke repo (Skilled)
-└────────┬────────┘
-         │ needs: train
-         ▼
-┌─────────────────┐
-│   Job: docker   │
-│                 │
-│ 1. Login Docker │
-│ 2. Build image  │ ← mlflow models build-docker (Advance)
-│ 3. Push image   │ ← ke Docker Hub (Advance)
-└─────────────────┘
+Push ke main / Manual trigger
+           │
+           ▼
+┌──────────────────────────────────────┐
+│     Job: train-and-deploy            │
+│                                      │
+│  1. Run actions/checkout@v3          │
+│  2. Set up Python 3.12.7             │
+│  3. Check Env                        │  ← verifikasi environment
+│  4. Install dependencies             │  ← mlflow, sklearn, pandas, dll
+│  5. Run mlflow project               │  ← mlflow run MLProject
+│  6. Get latest MLflow run_id         │  ← simpan ke GITHUB_ENV
+│  7. Install Python dependencies      │  ← requests, dll
+│  8. Upload to GitHub                 │  ← upload-artifact mlruns/
+│  9. Commit mlruns ke repository      │  ← artefak tersimpan di repo
+│ 10. Build Docker Model               │  ← mlflow models build-docker
+│ 11. Log in to Docker Hub             │  ← docker/login-action
+│ 12. Tag Docker Image                 │  ← tag :latest, :run-N, :sha
+│ 13. Push Docker Image                │  ← push ke Docker Hub
+└──────────────────────────────────────┘
 ```
 
 ---
@@ -86,21 +85,55 @@ Push / Manual trigger
 
 | Tingkat | Poin | Yang Dipenuhi |
 |---|---|---|
-| Basic | 2 | Folder MLProject + workflow CI berjalan |
-| Skilled | 3 | + Artefak disimpan ke GitHub (upload + commit) |
-| Advance | 4 | + Docker image di-build & push ke Docker Hub |
+| Basic   | 2 | Folder MLProject + workflow CI berjalan |
+| Skilled | 3 | + Artefak disimpan ke GitHub (upload-artifact + commit) |
+| **Advance** | **4** | **+ Docker image di-build & push ke Docker Hub** |
 
 ---
 
-## 🔧 Jalankan Lokal (opsional)
+## 🐳 Docker Hub
+
+Tautan: **https://hub.docker.com/r/finalestari72/workflow-ci**
 
 ```bash
-pip install mlflow dagshub scikit-learn pandas numpy matplotlib
+# Pull image
+docker pull finalestari72/water-potability-model:latest
 
-# Jalankan MLflow Project langsung
-mlflow run MLProject -P n_estimators=200 -P max_depth=10 --env-manager=local
+# Jalankan server prediksi
+docker run -p 5001:8080 finalestari72/water-potability-model:latest
+
+# Test prediksi
+curl http://127.0.0.1:5001/invocations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dataframe_split": {
+      "columns": ["ph","Hardness","Solids","Chloramines","Sulfate",
+                  "Conductivity","Organic_carbon","Trihalomethanes","Turbidity"],
+      "data": [[7.0, 200.0, 20000.0, 7.0, 300.0, 400.0, 14.0, 66.0, 4.0]]
+    }
+  }'
 ```
 
 ---
 
-*Submission Kelas Machine Learning — MSML Dicoding*
+## 🔧 Jalankan Lokal
+
+```bash
+# Install dependencies
+pip install mlflow==2.19.0 scikit-learn==1.5.2 pandas numpy matplotlib seaborn
+
+# Jalankan MLflow Project secara lokal
+mlflow run MLProject \
+  -P n_estimators=200 \
+  -P max_depth=10 \
+  --env-manager=local
+
+# Lihat hasil di MLflow UI
+mlflow ui --port 5000
+# Buka http://127.0.0.1:5000
+```
+
+---
+
+*Submission Kelas Machine Learning Operations — MSML Dicoding*
+*Penulis: Fina Lestari | 2026*
