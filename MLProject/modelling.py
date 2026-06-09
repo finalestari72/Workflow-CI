@@ -1,9 +1,6 @@
 """
 modelling.py — MLProject entry point
 =====================================
-File ini adalah versi modelling.py yang disesuaikan untuk MLflow Project.
-Menerima hyperparameter via argparse agar bisa dipanggil oleh MLProject.
-
 Penulis : Fina Lestari
 Tanggal : 2026-06-09
 """
@@ -41,15 +38,14 @@ from sklearn.utils import estimator_html_repr
 warnings.filterwarnings("ignore")
 
 # ── Konfigurasi ───────────────────────────────────────────────────────────────
-DATASET_PATH = "water_potability_preprocessing.csv"
-TARGET_COL   = "Potability"
-EXPERIMENT   = "Water-Potability-CI"
-
+DATASET_PATH  = "water_potability_preprocessing.csv"
+TARGET_COL    = "Potability"
+EXPERIMENT    = "Water-Potability-CI"
 DAGSHUB_OWNER = "finalestari2712"
 DAGSHUB_REPO  = "Membangun_model"
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SETUP MLFLOW — Token-based (no OAuth, CI-safe)
+# SETUP MLFLOW — dipanggil di awal SEBELUM mlflow.start_run apapun
 # ══════════════════════════════════════════════════════════════════════════════
 
 def setup_mlflow():
@@ -60,21 +56,21 @@ def setup_mlflow():
             "Tambahkan secret DAGSHUB_TOKEN di GitHub Actions."
         )
 
-    # Set tracking URI ke DagsHub
-    mlflow.set_tracking_uri(
-        f"https://dagshub.com/{DAGSHUB_OWNER}/{DAGSHUB_REPO}.mlflow"
-    )
+    tracking_uri = f"https://dagshub.com/{DAGSHUB_OWNER}/{DAGSHUB_REPO}.mlflow"
 
-    # Set kredensial MLflow via environment variable (tidak perlu dagshub.init)
+    # Set SEBELUM mlflow melakukan request apapun
+    os.environ["MLFLOW_TRACKING_URI"]      = tracking_uri
     os.environ["MLFLOW_TRACKING_USERNAME"] = DAGSHUB_OWNER
     os.environ["MLFLOW_TRACKING_PASSWORD"] = token
 
-    print(f"  MLflow URI  : https://dagshub.com/{DAGSHUB_OWNER}/{DAGSHUB_REPO}.mlflow")
-    print(f"  Auth        : token ({'*' * 6}{token[-4:]})")
+    mlflow.set_tracking_uri(tracking_uri)
+
+    print(f"  MLflow URI  : {tracking_uri}")
+    print(f"  Auth        : token OK (...{token[-4:]})")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ARGPARSE — parameter dari MLProject
+# ARGPARSE
 # ══════════════════════════════════════════════════════════════════════════════
 
 def parse_args():
@@ -157,13 +153,17 @@ def make_feature_importance(model, feature_names, save_path):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main():
+    # ── PERTAMA: setup tracking sebelum apapun ────────────────────────────────
+    # Ini harus paling atas — mlflow run sudah inject MLFLOW_RUN_ID ke env,
+    # dan start_run() akan hit tracking server untuk validasi ID tersebut.
+    # Kalau URI belum di-set saat itu, muncul error "Run not found".
+    setup_mlflow()
+    mlflow.set_experiment(EXPERIMENT)
+
+    # ── Parse args ────────────────────────────────────────────────────────────
     args = parse_args()
 
-    # max_depth
-    if args.max_depth == 0:
-        max_depth = None
-    else:
-        max_depth = args.max_depth
+    max_depth = None if args.max_depth == 0 else args.max_depth
 
     print("=" * 55)
     print("MLflow Project — Water Potability CI")
@@ -173,10 +173,6 @@ def main():
     print(f"  min_samples_split : {args.min_samples_split}")
     print(f"  min_samples_leaf  : {args.min_samples_leaf}")
     print(f"  max_features      : {args.max_features}")
-
-    # ── Setup MLflow (token-based, CI-safe) ───────────────────────────────────
-    setup_mlflow()
-    mlflow.set_experiment(EXPERIMENT)
 
     # ── Load data ─────────────────────────────────────────────────────────────
     df = pd.read_csv(DATASET_PATH)
@@ -217,10 +213,9 @@ def main():
     recall    = recall_score(y_test, y_pred, average="weighted")
     roc_auc   = roc_auc_score(y_test, y_prob)
 
-    # ── MLflow Manual Logging ─────────────────────────────────────────────────
+    # ── MLflow Logging ────────────────────────────────────────────────────────
     with mlflow.start_run(run_name="RF_CI_Pipeline"):
 
-        # Parameter
         mlflow.log_param("n_estimators",      args.n_estimators)
         mlflow.log_param("max_depth",         max_depth)
         mlflow.log_param("min_samples_split", args.min_samples_split)
@@ -229,7 +224,6 @@ def main():
         mlflow.log_param("test_size",         args.test_size)
         mlflow.log_param("random_state",      args.random_state)
 
-        # Metrik
         mlflow.log_metric("accuracy_score",           accuracy)
         mlflow.log_metric("f1_score_weighted",        f1)
         mlflow.log_metric("f1_score_macro",           f1_macro)
@@ -239,14 +233,12 @@ def main():
         mlflow.log_metric("cross_val_f1_mean",        cv_scores.mean())
         mlflow.log_metric("cross_val_f1_std",         cv_scores.std())
 
-        # Model
         mlflow.sklearn.log_model(
             sk_model              = model,
             artifact_path         = "model",
             registered_model_name = "WaterPotability_CI",
         )
 
-        # Artefak
         with tempfile.TemporaryDirectory() as tmp:
             est_path = os.path.join(tmp, "estimator.html")
             make_estimator_html(model, est_path)
@@ -268,10 +260,9 @@ def main():
             make_feature_importance(model, feature_names, fi_path)
             mlflow.log_artifact(fi_path)
 
-        # Tags
         mlflow.set_tag("model_type", "RandomForest")
         mlflow.set_tag("trigger",    "CI-GitHub-Actions")
-        mlflow.set_tag("developer",  "NamaSiswa")
+        mlflow.set_tag("developer",  "Fina Lestari")
 
         run_id = mlflow.active_run().info.run_id
 
