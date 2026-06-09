@@ -1,0 +1,15 @@
+Docker Hub Repository
+=====================
+Tautan Docker Hub: https://hub.docker.com/r/finalestari72/workflow-ci
+
+Image ini dibuat otomatis oleh GitHub Actions menggunakan:
+    mlflow models build-docker -m "models:/WaterPotability_CI/latest" -n "username/water-potability-model"
+
+Cara pull image:
+    docker pull finalestari72/workflow-ci:latest
+
+Cara run prediksi dengan image:
+    docker run -p 5001:8080 finalestari72/workflow-ci:latest
+    curl http://127.0.0.1:5001/invocations \
+      -H "Content-Type: application/json" \
+      -d '{"dataframe_split": {"columns": ["ph","Hardness","Solids","Chloramines","Sulfate","Conductivity","Organic_carbon","Trihalomethanes","Turbidity"], "data": [[7.0, 200.0, 20000.0, 7.0, 300.0, 400.0, 14.0, 66.0, 4.0]]}}'
