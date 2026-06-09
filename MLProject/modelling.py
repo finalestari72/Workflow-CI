@@ -136,8 +136,11 @@ def make_feature_importance(model, feature_names, save_path):
 def main():
     args = parse_args()
 
-    # max_depth: konversi ke int jika bukan None
-    max_depth = None if args.max_depth <= 0 else int(args.max_depth)
+    # max_depth
+    if args.max_depth == 0:
+        max_depth = None
+    else:
+        max_depth = args.max_depth
 
     print("=" * 55)
     print("MLflow Project — Water Potability CI")
